@@ -63,14 +63,19 @@ public class PmmlModelService {
         double[] featureValues = TextFeatureExtractor.getFeatureValues(text);
         List<String> featureNames = TextFeatureExtractor.getFeatureNames();
 
-        // 2. 构建模型输入
+        // 2. 构建模型输入（按特征名匹配，更安全）
         Map<FieldName, Object> inputMap = new LinkedHashMap<>();
         List<InputField> inputFields = evaluator.getInputFields();
-        
-        for (int i = 0; i < inputFields.size() && i < featureValues.length; i++) {
-            InputField inputField = inputFields.get(i);
+
+        for (InputField inputField : inputFields) {
             FieldName fieldName = inputField.getName();
-            inputMap.put(fieldName, featureValues[i]);
+            String featureName = fieldName.getValue();
+            
+            // 查找对应的特征值
+            int featureIndex = featureNames.indexOf(featureName);
+            if (featureIndex >= 0 && featureIndex < featureValues.length) {
+                inputMap.put(fieldName, featureValues[featureIndex]);
+            }
         }
 
         // 3. 执行预测
