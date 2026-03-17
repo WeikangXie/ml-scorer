@@ -81,7 +81,8 @@ public class PmmlModelService {
         result.setFeatures(features);
         
         // 获取预测标签
-        TargetField targetField = evaluator.getTargetField();
+        List<TargetField> targetFields = evaluator.getTargetFields();
+        TargetField targetField = targetFields.get(0);  // 通常第一个就是预测目标
         FieldName targetFieldName = targetField.getName();
         Object targetValue = outputMap.get(targetFieldName);
         
@@ -97,7 +98,6 @@ public class PmmlModelService {
         result.setLabel(prediction == 1 ? "AI" : "真人");
 
         // 获取概率（如果有）
-        List<TargetField> targetFields = evaluator.getTargetFields();
         for (OutputField outputField : evaluator.getOutputFields()) {
             String fieldName = outputField.getName().getValue();
             Object value = outputMap.get(outputField.getName());
