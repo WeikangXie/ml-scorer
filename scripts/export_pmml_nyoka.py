@@ -66,6 +66,20 @@ def main():
         print("   pip install nyoka")
         return
 
+    # 修改 PMML 版本为 4.3（兼容 JPMML 1.4.x）
+    print("\n🔧 修改 PMML 版本为 4.3...")
+    with open(output_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    content = content.replace(
+        'xmlns="http://www.dmg.org/PMML-4_4"',
+        'xmlns="http://www.dmg.org/PMML-4_3"'
+    )
+    content = content.replace('version="4.4"', 'version="4.3"')
+    content = content.replace('version="4.4.1"', 'version="4.3"')
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print("   版本修改完成！")
+
     # 输出特征列表
     print(f"\n📋 特征列表（共 {len(feature_names)} 个，Java 端需按此顺序提取）：")
     for i, name in enumerate(feature_names):
