@@ -35,7 +35,7 @@ env/
 
 # 模型文件（大文件）
 saved_models/*.pkl
-saved_models/*.pmml
+# saved_models/*.pmml  # 注释掉，允许 PMML 文件提交用于 Java 服务
 saved_models/bert_scorer/
 *.pt
 *.pth
