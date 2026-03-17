@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<PMML xmlns="http://www.dmg.org/PMML-4_4" version="4.4.1">
+<PMML xmlns="http://www.dmg.org/PMML-4_3" version="4.3">
     <Header copyright="Copyright (c) 2021 Software AG" description="Default description">
         <Application name="Nyoka" version="5.5.0"/>
         <Timestamp>2026-03-16 18:50:11.078347</Timestamp>
