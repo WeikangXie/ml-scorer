@@ -2,6 +2,8 @@ package com.example.aiscorer.controller;
 
 import com.example.aiscorer.dto.PredictRequest;
 import com.example.aiscorer.dto.PredictResponse;
+import com.example.aiscorer.dto.PredictResponse.FusionResult;
+import com.example.aiscorer.dto.PredictResponse.JudgeResult;
 import com.example.aiscorer.service.FusionService;
 import com.example.aiscorer.service.LlmService;
 import com.example.aiscorer.service.LlmService.LlmJudgeResult;
@@ -42,16 +44,24 @@ public class AiScorerController {
         
         PredictResponse response = new PredictResponse();
         response.setContent(request.getContent());
-        response.setLabel(result.getLabel());
-        response.setPrediction(result.getPrediction());
-        response.setAiProbability(result.getAiProbability());
-        response.setHumanProbability(result.getHumanProbability());
-        response.setFeatures(result.getFeatures());
         
-        // 设置融合结果（仅 ML）
-        response.setFinalScore(result.getHumanProbability() != null 
+        // ML 结果
+        JudgeResult ml = new JudgeResult();
+        ml.setLabel(result.getLabel());
+        ml.setPrediction(result.getPrediction());
+        ml.setAiProbability(result.getAiProbability());
+        ml.setHumanProbability(result.getHumanProbability());
+        ml.setScore(result.getHumanProbability() != null 
             ? result.getHumanProbability() * 100 : 50.0);
-        response.setFinalLabel(result.getLabel());
+        ml.setFeatures(result.getFeatures());
+        response.setMl(ml);
+        
+        // 融合结果（仅 ML）
+        FusionResult fusion = new FusionResult();
+        fusion.setScore(ml.getScore());
+        fusion.setLabel(ml.getLabel());
+        fusion.setDescription("仅 ML 判断");
+        response.setFusion(fusion);
         
         return response;
     }
@@ -81,11 +91,16 @@ public class AiScorerController {
             
             PredictResponse response = new PredictResponse();
             response.setContent(content);
-            response.setLabel(mlResult.getLabel());
-            response.setPrediction(mlResult.getPrediction());
-            response.setAiProbability(mlResult.getAiProbability());
-            response.setHumanProbability(mlResult.getHumanProbability());
-            response.setFeatures(mlResult.getFeatures());
+            
+            JudgeResult ml = new JudgeResult();
+            ml.setLabel(mlResult.getLabel());
+            ml.setPrediction(mlResult.getPrediction());
+            ml.setAiProbability(mlResult.getAiProbability());
+            ml.setHumanProbability(mlResult.getHumanProbability());
+            ml.setScore(mlResult.getHumanProbability() != null 
+                ? mlResult.getHumanProbability() * 100 : 50.0);
+            ml.setFeatures(mlResult.getFeatures());
+            response.setMl(ml);
             
             responses.add(response);
         }
@@ -97,7 +112,6 @@ public class AiScorerController {
         for (int i = 0; i < responses.size(); i++) {
             PredictResponse response = responses.get(i);
             LlmJudgeResult llmResult = i < llmResults.size() ? llmResults.get(i) : null;
-            
             fusionService.fuse(response, llmResult);
         }
         
@@ -116,11 +130,16 @@ public class AiScorerController {
         
         PredictResponse response = new PredictResponse();
         response.setContent(request.getContent());
-        response.setLabel(mlResult.getLabel());
-        response.setPrediction(mlResult.getPrediction());
-        response.setAiProbability(mlResult.getAiProbability());
-        response.setHumanProbability(mlResult.getHumanProbability());
-        response.setFeatures(mlResult.getFeatures());
+        
+        JudgeResult ml = new JudgeResult();
+        ml.setLabel(mlResult.getLabel());
+        ml.setPrediction(mlResult.getPrediction());
+        ml.setAiProbability(mlResult.getAiProbability());
+        ml.setHumanProbability(mlResult.getHumanProbability());
+        ml.setScore(mlResult.getHumanProbability() != null 
+            ? mlResult.getHumanProbability() * 100 : 50.0);
+        ml.setFeatures(mlResult.getFeatures());
+        response.setMl(ml);
         
         // 2. LLM 判断
         List<LlmJudgeResult> llmResults = llmService.batchJudge(
