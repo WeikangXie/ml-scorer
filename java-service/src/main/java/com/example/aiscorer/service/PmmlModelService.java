@@ -21,6 +21,15 @@ public class PmmlModelService {
 
     private Evaluator evaluator;
 
+    /** 模型输入字段（缓存，避免每次预测重复查询） */
+    private List<InputField> cachedInputFields;
+    /** 模型目标字段（缓存） */
+    private List<TargetField> cachedTargetFields;
+    /** 模型输出字段（缓存） */
+    private List<OutputField> cachedOutputFields;
+    /** 特征名列表（缓存） */
+    private List<String> cachedFeatureNames;
+
     /**
      * 服务启动时加载 PMML 模型
      */
@@ -35,6 +44,13 @@ public class PmmlModelService {
                 evaluator.verify();
                 System.out.println("✅ PMML 模型加载成功！");
             }
+
+            // 缓存模型字段信息，避免每次预测重复查询
+            cachedInputFields = evaluator.getInputFields();
+            cachedTargetFields = evaluator.getTargetFields();
+            cachedOutputFields = evaluator.getOutputFields();
+            cachedFeatureNames = TextFeatureExtractor.getFeatureNames();
+
         } catch (Exception e) {
             System.err.println("❌ 加载 PMML 模型失败：" + e.getMessage());
             e.printStackTrace();
@@ -58,19 +74,45 @@ public class PmmlModelService {
      * @return 预测结果
      */
     public PredictionResult predict(String text) {
+        return doPredict(text, cachedFeatureNames, cachedInputFields,
+                cachedTargetFields, cachedOutputFields);
+    }
+
+    /**
+     * 预测多条文本（批量），内部只查询一次模型字段，避免重复计算
+     * 
+     * @param texts 输入文本列表
+     * @return 每条文本对应的预测结果列表，顺序与输入一致
+     */
+    public List<PredictionResult> predictBatch(List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PredictionResult> results = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            results.add(doPredict(text, cachedFeatureNames, cachedInputFields,
+                    cachedTargetFields, cachedOutputFields));
+        }
+        return results;
+    }
+
+    /**
+     * 实际执行预测的内部方法，模型字段由调用方传入，避免重复查询
+     */
+    private PredictionResult doPredict(String text, List<String> featureNames,
+            List<InputField> inputFields, List<TargetField> targetFields,
+            List<OutputField> outputFields) {
+
         // 1. 提取特征
         Map<String, Double> features = TextFeatureExtractor.extractFeatures(text);
         double[] featureValues = TextFeatureExtractor.getFeatureValues(text);
-        List<String> featureNames = TextFeatureExtractor.getFeatureNames();
 
-        // 2. 构建模型输入（按特征名匹配，更安全）
+        // 2. 构建模型输入（按特征名匹配）
         Map<FieldName, Object> inputMap = new LinkedHashMap<>();
-        List<InputField> inputFields = evaluator.getInputFields();
-
         for (InputField inputField : inputFields) {
             FieldName fieldName = inputField.getName();
             String featureName = fieldName.getValue();
-            
+
             // 查找对应的特征值
             int featureIndex = featureNames.indexOf(featureName);
             if (featureIndex >= 0 && featureIndex < featureValues.length) {
@@ -84,33 +126,32 @@ public class PmmlModelService {
         // 4. 解析预测结果
         PredictionResult result = new PredictionResult();
         result.setFeatures(features);
-        
+
         // 获取预测标签
-        List<TargetField> targetFields = evaluator.getTargetFields();
-        TargetField targetField = targetFields.get(0);  // 通常第一个就是预测目标
+        TargetField targetField = targetFields.get(0);
         FieldName targetFieldName = targetField.getName();
         Object targetValue = outputMap.get(targetFieldName);
-        
+
         if (targetValue instanceof Computable) {
             targetValue = ((Computable) targetValue).getResult();
         }
-        
-        int prediction = (targetValue instanceof Number) 
-            ? ((Number) targetValue).intValue() 
-            : Integer.parseInt(targetValue.toString());
-        
+
+        int prediction = (targetValue instanceof Number)
+                ? ((Number) targetValue).intValue()
+                : Integer.parseInt(targetValue.toString());
+
         result.setPrediction(prediction);
         result.setLabel(prediction == 1 ? "AI" : "真人");
 
         // 获取概率（如果有）
-        for (OutputField outputField : evaluator.getOutputFields()) {
+        for (OutputField outputField : outputFields) {
             String fieldName = outputField.getName().getValue();
             Object value = outputMap.get(outputField.getName());
-            
+
             if (value instanceof Computable) {
                 value = ((Computable) value).getResult();
             }
-            
+
             if (fieldName.contains("probability") || fieldName.equals("probability(1)")) {
                 if (value instanceof Number) {
                     result.setAiProbability(((Number) value).doubleValue());
@@ -124,23 +165,6 @@ public class PmmlModelService {
         }
 
         return result;
-    }
-
-    /**
-     * 预测多条文本（批量）
-     * 
-     * @param texts 输入文本列表
-     * @return 每条文本对应的预测结果列表，顺序与输入一致
-     */
-    public List<PredictionResult> predictBatch(List<String> texts) {
-        if (texts == null || texts.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<PredictionResult> results = new ArrayList<>(texts.size());
-        for (String text : texts) {
-            results.add(predict(text));
-        }
-        return results;
     }
 
     /**
