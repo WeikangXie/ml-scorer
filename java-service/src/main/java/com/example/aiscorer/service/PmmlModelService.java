@@ -127,6 +127,23 @@ public class PmmlModelService {
     }
 
     /**
+     * 预测多条文本（批量）
+     * 
+     * @param texts 输入文本列表
+     * @return 每条文本对应的预测结果列表，顺序与输入一致
+     */
+    public List<PredictionResult> predictBatch(List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PredictionResult> results = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            results.add(predict(text));
+        }
+        return results;
+    }
+
+    /**
      * 预测结果类
      */
     public static class PredictionResult {
